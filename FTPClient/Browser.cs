@@ -17,6 +17,11 @@ namespace FTPClient
         private FTPclient _client;
         private string currentDir = "/";
         private FTPfileInfo currentFile;
+        private FTPdirectory currentDirectory;
+
+        //The directory to use for the previous/next buttons
+        private FTPdirectory currentDirectoryForNav;
+
         public Browser(FTPclient client)
         {
             InitializeComponent();
@@ -35,6 +40,7 @@ namespace FTPClient
         public void LoadDirectory(FTPdirectory dir)
         {
             currentDirectoryTextbox.Text = currentDir;
+            currentDirectory = dir;
             //Show the end of the text (the deepest dir)
             currentDirectoryTextbox.SelectionStart = currentDirectoryTextbox.Text.Length;
             currentDirectoryTextbox.SelectionLength = 0;
@@ -62,15 +68,23 @@ namespace FTPClient
 
         public async Task ParentDirectoryClick(object sender, EventArgs e)
         {
-            string newDirPath = FTPdirectory.GetParentDirectory(currentDir);
-            var newDir = await _client.ListDirectoryDetail(newDirPath);
-            currentDir = newDirPath;
-            LoadDirectory(newDir);
+            try
+            {
+                string newDirPath = FTPdirectory.GetParentDirectory(currentDir);
+                var newDir = await _client.ListDirectoryDetail(newDirPath);
+                currentDir = newDirPath;
+                LoadDirectory(newDir);
+            }
+            catch
+            {
+
+            }
         }
 
         public async Task FileClick(object sender, EventArgs e, FTPfileInfo file)
         {
             loadingSpinner.Visible = true;
+            currentDirectoryForNav = currentDirectory;
             string ext = file.Extension.ToLower();
             currentFile = file;
             if(ext == "jpg" || ext == "png" || ext == "jpeg" || ext == "bmp")
@@ -117,7 +131,6 @@ namespace FTPClient
         public async Task DirectoryClick(object sender, EventArgs e)
         {
             loadingSpinner.Visible = true;
-
             string newDirPath = ((LinkLabel)sender).Text;
             var newDir = await _client.ListDirectoryDetail(currentDir+newDirPath);
             currentDir = currentDir + newDirPath + "/";
@@ -162,12 +175,22 @@ namespace FTPClient
 
         private void nextButton_Click(object sender, EventArgs e)
         {
-
+            if(currentDirectoryForNav != null)
+            {
+                int idx = currentDirectoryForNav.FindIndex(f => f.Equals(currentFile));
+                idx = idx < currentDirectoryForNav.Count ? idx : -1;
+                FileClick(null, null, currentDirectoryForNav.ElementAt(idx + 1));
+            }
         }
 
         private void previousButton_Click(object sender, EventArgs e)
         {
-
+            if (currentDirectoryForNav != null)
+            {
+                int idx = currentDirectoryForNav.FindIndex(f => f.Equals(currentFile));
+                idx = idx == 0 ? currentDirectoryForNav.Count : idx;
+                FileClick(null, null, currentDirectoryForNav.ElementAt(idx - 1));
+            }
         }
     }
 }
